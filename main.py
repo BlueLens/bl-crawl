@@ -27,13 +27,14 @@ REDIS_HOST_CRAWL_QUEUE = 'bl:host:crawl:queue'
 
 REDIS_SERVER = os.environ['REDIS_SERVER']
 REDIS_PASSWORD = os.environ['REDIS_PASSWORD']
+RELEASE_MODE = os.environ['RELEASE_MODE']
 rconn = redis.StrictRedis(REDIS_SERVER, port=6379, password=REDIS_PASSWORD)
 
 options = {
   'REDIS_SERVER': REDIS_SERVER,
   'REDIS_PASSWORD': REDIS_PASSWORD
 }
-log = Logging(options, tag='bl-crawler')
+log = Logging(options, tag='bl-crawl')
 
 
 def spawn_crawler():
@@ -41,7 +42,7 @@ def spawn_crawler():
   id = str(uuid.uuid4())
   pool = spawning_pool.SpawningPool()
 
-  project_name = 'bl-crawlper-' + id
+  project_name = 'bl-crawler-' + id
   log.debug('spawn_crawler: ' + project_name)
 
   pool.setServerUrl(REDIS_SERVER)
@@ -49,7 +50,7 @@ def spawn_crawler():
   pool.setApiVersion('v1')
   pool.setKind('Pod')
   pool.setMetadataName(project_name)
-  pool.setMetadataNamespace('index')
+  pool.setMetadataNamespace(RELEASE_MODE)
   pool.addMetadataLabel('name', project_name)
   pool.addMetadataLabel('group', 'bl-crawler')
   pool.addMetadataLabel('SPAWN_ID', id)
@@ -58,7 +59,8 @@ def spawn_crawler():
   pool.addContainerEnv(container, 'REDIS_SERVER', REDIS_SERVER)
   pool.addContainerEnv(container, 'REDIS_PASSWORD', REDIS_PASSWORD)
   pool.addContainerEnv(container, 'SPAWN_ID', id)
-  pool.setContainerImage(container, 'bluelens/bl-crawler:latest')
+  pool.addContainerEnv(container, 'RELEASE_MODE', RELEASE_MODE)
+  pool.setContainerImage(container, 'bluelens/bl-crawler:' + RELEASE_MODE)
   pool.addContainer(container)
   pool.setRestartPolicy('Never')
   pool.spawn()
@@ -67,16 +69,18 @@ def create_new_version(version_name):
   log.info("create_new_version:" + version_name)
   version_api = stylelens_product.VersionApi()
   version = Version()
-  version.version_name = version_name
+  version.name = version_name
 
   try:
     res = version_api.add_version(version)
-    if res.data != None and res.data.version_id != None:
-      set_latest_crawl_version(res.data.version_id)
+    if res.data.created_count > 0:
+      version_id = res.data.version_id
+      set_latest_crawl_version(version_id)
       return True
   except ApiException as e:
     log.error("Exception when calling VersionApi->add_version: %s\n" % e)
 
+  log.error("Could not create new version")
   return False
 
 def push_host_to_queue(host_code):
@@ -84,9 +88,10 @@ def push_host_to_queue(host_code):
 
 
 def set_latest_crawl_version(version_id):
+  log.debug('set_latest_crawl_version : ' + version_id)
   rconn.hset(REDIS_CRAWL_VERSION, REDIS_CRAWL_VERSION_LATEST, version_id)
 
-def start_crawl(version_name):
+def start_crawl():
   log.info('start_crawl')
 
   host_api = stylelens_product.HostApi()
@@ -113,7 +118,7 @@ def dispatch(rconn):
     version_name = value.decode('utf-8')
     ret = create_new_version(version_name)
     if ret == True:
-      start_crawl(version_name)
+      start_crawl()
 
 if __name__ == '__main__':
   log.info('Start bl-crawl')

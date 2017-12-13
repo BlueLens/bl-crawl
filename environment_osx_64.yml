@@ -1,4 +1,4 @@
-name: bl-crawlper
+name: bl-crawler
 channels:
 - defaults
 dependencies:
@@ -53,5 +53,5 @@ dependencies:
   - tqdm==4.11.2
   - urllib3==1.22
   - werkzeug==0.12.2
-prefix: /Users/bok95/anaconda/envs/bl-crawlper
+prefix: /Users/bok95/anaconda/envs/bl-crawler
 

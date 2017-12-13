@@ -2,8 +2,8 @@
 
 export ORG="bluelens"
 export IMAGE="bl-crawl"
-export TAG='latest'
-export NAMESPACE="index"
+export TAG='dev'
+export NAMESPACE="dev"
 
 docker login
 

@@ -192,3 +192,4 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 kubernetes/config.yaml
+kubernetes/config-dev.yaml

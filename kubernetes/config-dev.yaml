@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bl-crawl
+  namespace: dev
+  labels:
+    name: bl-crawl
+spec:
+#  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    name: bl-crawl
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: bl-crawl
+  namespace: dev
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        role: dev
+        name: bl-crawl
+    spec:
+      restartPolicy: Always
+      containers:
+      - image: bluelens/bl-crawl:dev
+        name: bl-crawl
+        ports:
+        - containerPort: 8080
+          name: http-server
+        env:
+        - name: REDIS_SERVER
+          value: "bl-mem-store-index-dev-vm"
+        - name: REDIS_PASSWORD
+          value: "wLP2N431YXFW"
+        - name: RELEASE_MODE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
