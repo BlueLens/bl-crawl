@@ -124,7 +124,7 @@ def start_crawl(version_id):
   limit = 10
   try:
     while True:
-      res = host_api.get_hosts(version_id=version_id, crawl_status=HOST_STATUS_TODO, offset=offset, limit=limit)
+      res = host_api.get_hosts(version_id=None, crawl_status=HOST_STATUS_TODO, offset=offset, limit=limit)
       for h in res:
         spawn_crawler(h['host_code'], version_id)
 
