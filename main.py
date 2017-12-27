@@ -24,9 +24,12 @@ CWD_PATH = os.getcwd()
 CRAWL_TERM = 60*30
 
 REDIS_JOB_CRAWL_QUEUE = 'bl:job:crawl:queue'
+REDIS_HOST_CRAWL_QUEUE = 'bl:host:crawl:queue'
 REDIS_CRAWL_VERSION = 'bl:crawl:version'
 REDIS_CRAWL_VERSION_LATEST = 'latest'
 # REDIS_HOST_CRAWL_QUEUE = 'bl:host:crawl:queue'
+REDIS_INDEX_RESTART_QUEUE = "bl:index:restart:queue"
+
 
 REDIS_SERVER = os.environ['REDIS_SERVER']
 REDIS_PASSWORD = os.environ['REDIS_PASSWORD']
@@ -48,8 +51,7 @@ product_api = None
 host_api = None
 version_api = None
 
-def spawn_crawler(host_code):
-
+def spawn_crawler(host_code, version_id):
   pool = spawning_pool.SpawningPool()
   id = host_code.lower()
 
@@ -71,6 +73,7 @@ def spawn_crawler(host_code):
   pool.addContainerEnv(container, 'REDIS_PASSWORD', REDIS_PASSWORD)
   pool.addContainerEnv(container, 'SPAWN_ID', id)
   pool.addContainerEnv(container, 'HOST_CODE', host_code)
+  pool.addContainerEnv(container, 'VERSION_ID', version_id)
   pool.addContainerEnv(container, 'RELEASE_MODE', RELEASE_MODE)
   pool.addContainerEnv(container, 'DB_PRODUCT_HOST', DB_PRODUCT_HOST)
   pool.addContainerEnv(container, 'DB_PRODUCT_PORT', DB_PRODUCT_PORT)
@@ -94,36 +97,35 @@ def create_new_version(version_name):
     if res is not None:
       version_id = res
       set_latest_crawl_version(version_id)
-      return True
+      return version_id
   except Exception as e:
     log.error("Exception when calling VersionApi->add_version: %s\n" % e)
 
   log.error("Could not create new version")
-  return False
+  return None
 
-# def push_host_to_queue(host_code):
-#   rconn.lpush(REDIS_HOST_CRAWL_QUEUE, host_code)
+def restart_indexer(version_id):
+  rconn.lpush(REDIS_INDEX_RESTART_QUEUE, version_id)
 
 
 def set_latest_crawl_version(version_id):
   log.debug('set_latest_crawl_version : ' + version_id)
   rconn.hset(REDIS_CRAWL_VERSION, REDIS_CRAWL_VERSION_LATEST, version_id)
 
-def start_crawl():
+def start_crawl(version_id):
   log.info('start_crawl')
 
   global host_api
   offset = 0
-  limit = 30
+  limit = 10
   try:
     while True:
-      res = host_api.get_hosts(offset=offset, limit=limit)
+      res = host_api.get_hosts(version_id=version_id, offset=offset, limit=limit)
       for h in res:
-        push_host_to_queue(h['host_code'])
-        spawn_crawler(h['host_code'])
+        spawn_crawler(h['host_code'], version_id)
 
       if limit > len(res):
-        break
+        offset = 0
       else:
         offset = offset + limit
         time.sleep(CRAWL_TERM)
@@ -143,13 +145,13 @@ def dispatch(rconn):
     key, value = rconn.blpop([REDIS_JOB_CRAWL_QUEUE])
     log.debug("after")
     version_name = value.decode('utf-8')
-    ret = create_new_version(version_name)
-    if ret == True:
-      start_crawl()
+    version_id= create_new_version(version_name)
+    if version_id is not None:
+      restart_indexer(version_id)
+      start_crawl(version_id)
 
 if __name__ == '__main__':
-  log.info('Start bl-crawl')
-  log.info('bokkkkkk')
+  log.info('Start bl-crawl 2')
   try:
     Process(target=dispatch, args=(rconn,)).start()
   except Exception as e:
