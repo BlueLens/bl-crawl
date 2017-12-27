@@ -23,6 +23,10 @@ CWD_PATH = os.getcwd()
 
 CRAWL_TERM = 60*30
 
+HOST_STATUS_TODO = 'todo'
+HOST_STATUS_DOING = 'doing'
+HOST_STATUS_DONE = 'done'
+
 REDIS_JOB_CRAWL_QUEUE = 'bl:job:crawl:queue'
 REDIS_HOST_CRAWL_QUEUE = 'bl:host:crawl:queue'
 REDIS_CRAWL_VERSION = 'bl:crawl:version'
@@ -120,12 +124,12 @@ def start_crawl(version_id):
   limit = 10
   try:
     while True:
-      res = host_api.get_hosts(version_id=version_id, offset=offset, limit=limit)
+      res = host_api.get_hosts(version_id=version_id, crawl_status=HOST_STATUS_TODO, offset=offset, limit=limit)
       for h in res:
         spawn_crawler(h['host_code'], version_id)
 
       if limit > len(res):
-        offset = 0
+        break
       else:
         offset = offset + limit
         time.sleep(CRAWL_TERM)
