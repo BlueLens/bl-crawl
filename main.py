@@ -129,15 +129,16 @@ def start_crawl(version_id):
         spawn_crawler(h['host_code'], version_id)
 
       if limit > len(res):
-        break
+        offset = 0
       else:
         offset = offset + limit
-        time.sleep(CRAWL_TERM)
+
+      time.sleep(CRAWL_TERM)
 
   except Exception as e:
     log.error("Exception when calling HostApi->get_hosts: %s\n" % e)
 
-def dispatch(rconn):
+def dispatch():
   global product_api
   global version_api
   global host_api
@@ -157,7 +158,7 @@ def dispatch(rconn):
 if __name__ == '__main__':
   log.info('Start bl-crawl 2')
   try:
-    Process(target=dispatch, args=(rconn,)).start()
+    dispatch()
   except Exception as e:
     log.error(str(e))
     exit()
