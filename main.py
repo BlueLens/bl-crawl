@@ -9,6 +9,7 @@ import redis
 from stylelens_product.products import Products
 from stylelens_product.versions import Versions
 from stylelens_product.hosts import Hosts
+from stylelens_product.crawls import Crawls
 
 from bluelens_spawning_pool import spawning_pool
 from bluelens_log import Logging
@@ -51,9 +52,7 @@ options = {
 }
 log = Logging(options, tag='bl-crawl')
 
-product_api = None
-host_api = None
-version_api = None
+crawl_api = Crawls()
 
 def spawn_crawler(host_code, version_id):
   pool = spawning_pool.SpawningPool()
@@ -92,7 +91,7 @@ def spawn_crawler(host_code, version_id):
 
 def create_new_version(version_name):
   log.info("create_new_version:" + version_name)
-  global version_api
+  version_api = Versions()
   version = {}
   version['name'] = version_name
 
@@ -124,12 +123,16 @@ def start_crawl(version_id):
   limit = 10
   try:
     while True:
-      res = host_api.get_hosts(version_id=None, crawl_status=HOST_STATUS_TODO, offset=offset, limit=limit)
-      for h in res:
-        spawn_crawler(h['host_code'], version_id)
 
-      if limit > len(res):
-        offset = 0
+      crawls = crawl_api.get_crawls(version_id=version_id,
+                                    status='todo',
+                                    offset=offset,
+                                    limit=limit)
+      for crawl in crawls:
+        spawn_crawler(crawl['host_code'], version_id)
+
+      if limit > len(crawls):
+        break
       else:
         offset = offset + limit
 
@@ -138,27 +141,46 @@ def start_crawl(version_id):
   except Exception as e:
     log.error("Exception when calling HostApi->get_hosts: %s\n" % e)
 
-def dispatch():
-  global product_api
-  global version_api
-  global host_api
-  product_api = Products()
-  version_api = Versions()
+def create_crawl_jobs(version_id):
+  log.info('create_crawl_jobs')
   host_api = Hosts()
+
+  offset = 0
+  limit = 100
+
   while True:
-    log.debug("before")
+    try:
+      hosts = host_api.get_hosts(version_id=None, offset=offset, limit=limit)
+
+      for host in hosts:
+        crawl = {}
+        crawl['host_code'] = host['host_code']
+        crawl['version_id'] = version_id
+        crawl_api.add_crawl(crawl)
+
+      if limit > len(hosts):
+        break
+      else:
+        offset = offset + limit
+
+    except Exception as e:
+      log.error(str(e))
+
+def dispatch():
+  while True:
     key, value = rconn.blpop([REDIS_JOB_CRAWL_QUEUE])
-    log.debug("after")
     version_name = value.decode('utf-8')
     version_id= create_new_version(version_name)
     if version_id is not None:
+      create_crawl_jobs(version_id)
       restart_indexer(version_id)
       start_crawl(version_id)
 
 if __name__ == '__main__':
   log.info('Start bl-crawl 2')
   try:
-    dispatch()
+    # dispatch()
+    start_crawl("5a47ccfe4dfd7d90b84eb710")
   except Exception as e:
     log.error(str(e))
     exit()
