@@ -6,7 +6,6 @@ import time
 from multiprocessing import Process
 
 import redis
-from stylelens_product.products import Products
 from stylelens_product.versions import Versions
 from stylelens_product.hosts import Hosts
 from stylelens_product.crawls import Crawls
@@ -32,9 +31,7 @@ REDIS_JOB_CRAWL_QUEUE = 'bl:job:crawl:queue'
 REDIS_HOST_CRAWL_QUEUE = 'bl:host:crawl:queue'
 REDIS_CRAWL_VERSION = 'bl:crawl:version'
 REDIS_CRAWL_VERSION_LATEST = 'latest'
-# REDIS_HOST_CRAWL_QUEUE = 'bl:host:crawl:queue'
 REDIS_INDEX_RESTART_QUEUE = "bl:index:restart:queue"
-
 
 REDIS_SERVER = os.environ['REDIS_SERVER']
 REDIS_PASSWORD = os.environ['REDIS_PASSWORD']
@@ -120,7 +117,7 @@ def start_crawl(version_id):
 
   global host_api
   offset = 0
-  limit = 10
+  limit = 30
   try:
     while True:
 
@@ -128,13 +125,11 @@ def start_crawl(version_id):
                                     status='todo',
                                     offset=offset,
                                     limit=limit)
+      if len(crawls) == 0:
+        break
+
       for crawl in crawls:
         spawn_crawler(crawl['host_code'], version_id)
-
-      if limit > len(crawls):
-        break
-      else:
-        offset = offset + limit
 
       time.sleep(CRAWL_TERM)
 
@@ -146,7 +141,7 @@ def create_crawl_jobs(version_id):
   host_api = Hosts()
 
   offset = 0
-  limit = 100
+  limit = 50
 
   while True:
     try:
@@ -177,10 +172,9 @@ def dispatch():
       start_crawl(version_id)
 
 if __name__ == '__main__':
-  log.info('Start bl-crawl 2')
+  log.info('Start bl-crawl:3')
   try:
-    # dispatch()
-    start_crawl("5a47ccfe4dfd7d90b84eb710")
+    dispatch()
   except Exception as e:
     log.error(str(e))
-    exit()
+    # exit()
