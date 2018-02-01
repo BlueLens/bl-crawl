@@ -51,7 +51,7 @@ log = Logging(options, tag='bl-crawl')
 
 crawl_api = Crawls()
 
-def spawn_crawler(host_code, version_id):
+def spawn_crawler(host_code, host_group, version_id):
   pool = spawning_pool.SpawningPool()
   id = host_code.lower()
 
@@ -73,6 +73,7 @@ def spawn_crawler(host_code, version_id):
   pool.addContainerEnv(container, 'REDIS_PASSWORD', REDIS_PASSWORD)
   pool.addContainerEnv(container, 'SPAWN_ID', id)
   pool.addContainerEnv(container, 'HOST_CODE', host_code)
+  pool.addContainerEnv(container, 'HOST_GROUP', host_group)
   pool.addContainerEnv(container, 'VERSION_ID', version_id)
   pool.addContainerEnv(container, 'RELEASE_MODE', RELEASE_MODE)
   pool.addContainerEnv(container, 'DB_PRODUCT_HOST', DB_PRODUCT_HOST)
@@ -118,10 +119,12 @@ def start_crawl(version_id):
   global host_api
   offset = 0
   limit = 30
+  host_group = 'HG1000'
   try:
     while True:
 
       crawls = crawl_api.get_crawls(version_id=version_id,
+                                    host_group=host_group,
                                     status='todo',
                                     offset=offset,
                                     limit=limit)
@@ -129,7 +132,7 @@ def start_crawl(version_id):
         break
 
       for crawl in crawls:
-        spawn_crawler(crawl['host_code'], version_id)
+        spawn_crawler(crawl['host_code'], host_group=host_group, version_id=version_id)
 
       time.sleep(CRAWL_TERM)
 
@@ -145,11 +148,14 @@ def create_crawl_jobs(version_id):
 
   while True:
     try:
-      hosts = host_api.get_hosts(version_id=None, offset=offset, limit=limit)
+      hosts = host_api.get_hosts(host_group='HG1000',
+                                 version_id=None,
+                                 offset=offset, limit=limit)
 
       for host in hosts:
         crawl = {}
         crawl['host_code'] = host['host_code']
+        crawl['host_group'] = host['host_group']
         crawl['version_id'] = version_id
         crawl_api.add_crawl(crawl)
 
@@ -172,7 +178,7 @@ def dispatch():
       start_crawl(version_id)
 
 if __name__ == '__main__':
-  log.info('Start bl-crawl:3')
+  log.info('Start bl-crawl:1')
   try:
     dispatch()
   except Exception as e:
