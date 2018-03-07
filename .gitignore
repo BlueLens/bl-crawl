@@ -193,3 +193,5 @@ crashlytics-build.properties
 fabric.properties
 kubernetes/config.yaml
 kubernetes/config-dev.yaml
+kubernetes/config-amz.yaml
+browse_node_cache.txt

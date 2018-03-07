@@ -1,5 +1,5 @@
-FROM bluelens/python:3.6
-#FROM bluelens/ubuntu-16.04:py3
+#FROM bluelens/python:3.6
+FROM bluelens/ubuntu-16.04:py3
 MAINTAINER bluehackmaster <master@bluehack.net>
 
 RUN mkdir -p /usr/src/app

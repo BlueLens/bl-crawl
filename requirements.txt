@@ -1,9 +1,15 @@
+beautifulsoup4==4.6.0
+bluelens-k8s==0.0.3
 bluelens-log==1.0.2
 bluelens-spawning-pool==1.0.10
+bottlenose==1.1.8
+bs4==0.0.1
 certifi==2018.1.18
-pymongo==3.6.0
+lxml==4.1.1
+pymongo==3.6.1
 python-dateutil==2.6.1
 redis==2.10.6
 six==1.11.0
-stylelens-product==1.0.71
+stylelens-crawl-amazon==0.0.38
+stylelens-product==1.0.87
 urllib3==1.22
